@@ -74,8 +74,23 @@ pc.ontrack = (e) => {
         updateStatus('Waiting…', '');
       }
     };
-    e.track.onmute = clearVideo;
-    e.track.onended = clearVideo;
+
+    let muteTimeout = null;
+    e.track.onmute = () => {
+      muteTimeout = setTimeout(clearVideo, 2000);
+    };
+    e.track.onunmute = () => {
+      if (muteTimeout) {
+        clearTimeout(muteTimeout);
+        muteTimeout = null;
+      }
+      emptyVideo.srcObject = e.streams[0];
+      updateStatus('Streaming', 'streaming');
+    };
+    e.track.onended = () => {
+      if (muteTimeout) clearTimeout(muteTimeout);
+      clearVideo();
+    };
   }
 };
 
