@@ -75,8 +75,33 @@ startBtn.onclick = async () => {
   updateStatus('Requesting permissions...', '');
 
   try {
-    // 1. Get webcam
-    const webcamStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+    // 1. Get webcam (with fallback if not found)
+    let webcamStream;
+    try {
+      webcamStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+    } catch (err) {
+      if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+        console.warn('Physical webcam not found, using a mock stream.');
+        const mockCanvas = document.createElement('canvas');
+        mockCanvas.width = 640;
+        mockCanvas.height = 480;
+        const ctx = mockCanvas.getContext('2d');
+        let x = 0;
+        setInterval(() => {
+          ctx.fillStyle = '#0f141c';
+          ctx.fillRect(0, 0, 640, 480);
+          ctx.fillStyle = '#8b949e';
+          ctx.font = '24px monospace';
+          ctx.fillText('MOCK WEBCAM (No Hardware)', 50, 240);
+          ctx.fillStyle = '#58a6ff';
+          ctx.fillRect(x, 280, 50, 50);
+          x = (x + 4) % 640;
+        }, 1000 / 30);
+        webcamStream = mockCanvas.captureStream(30);
+      } else {
+        throw err;
+      }
+    }
     
     // 2. Get screen share
     const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
@@ -137,9 +162,13 @@ startBtn.onclick = async () => {
     socket.emit('offer', offer);
 
     updateStatus('Streaming', 'streaming');
-  } catch (error) {
-    console.error('Failed to start streaming:', error);
-    updateStatus('Error: Permission Denied', '');
+  } catch (err) {
+    if (err.name === 'NotAllowedError') {
+      updateStatus('Permission denied — please allow camera/screen access', 'error');
+    } else {
+      updateStatus(`Error: ${err.message}`, 'error');
+    }
     startBtn.disabled = false;
+    return;
   }
 };

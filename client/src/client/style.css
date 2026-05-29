@@ -61,6 +61,10 @@ body {
   background-color: var(--accent);
   box-shadow: 0 0 8px var(--accent);
 }
+.dot.error {
+  background-color: #cf222e;
+  box-shadow: 0 0 8px #cf222e;
+}
 #start-btn {
   background: linear-gradient(135deg, #2ea44f, #22863a);
   border: none;
