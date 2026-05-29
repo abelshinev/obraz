@@ -67,6 +67,15 @@ pc.ontrack = (e) => {
   if (emptyVideo) {
     emptyVideo.srcObject = e.streams[0];
     updateStatus('Streaming', 'streaming');
+
+    const clearVideo = () => {
+      emptyVideo.srcObject = null;
+      if (videos.every(v => !v.srcObject)) {
+        updateStatus('Waiting…', '');
+      }
+    };
+    e.track.onmute = clearVideo;
+    e.track.onended = clearVideo;
   }
 };
 
