@@ -15,6 +15,12 @@ startBtn.id = 'start-btn';
 startBtn.textContent = 'Start';
 document.body.appendChild(startBtn);
 
+const stopBtn = document.createElement('button');
+stopBtn.id = 'stop-btn';
+stopBtn.textContent = 'Stop';
+stopBtn.disabled = true;
+document.body.appendChild(stopBtn);
+
 const grid = document.createElement('div');
 grid.className = 'grid';
 
@@ -70,13 +76,21 @@ pc.onconnectionstatechange = () => {
 socket.on('answer', (answer) => pc.setRemoteDescription(answer));
 socket.on('ice-candidate', (candidate) => pc.addIceCandidate(candidate).catch(() => {}));
 
+// Global references for stream and interval cleanups
+let webcamStream = null;
+let screenStream = null;
+let webcamWithTimestamp = null;
+let webcamInterval = null;
+let screenInterval = null;
+let mockInterval = null;
+
 startBtn.onclick = async () => {
   startBtn.disabled = true;
+  stopBtn.disabled = true;
   updateStatus('Requesting permissions...', '');
 
   try {
     // 1. Get webcam (with fallback if not found)
-    let webcamStream;
     try {
       webcamStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
     } catch (err) {
@@ -87,7 +101,7 @@ startBtn.onclick = async () => {
         mockCanvas.height = 480;
         const ctx = mockCanvas.getContext('2d');
         let x = 0;
-        setInterval(() => {
+        mockInterval = setInterval(() => {
           ctx.fillStyle = '#0f141c';
           ctx.fillRect(0, 0, 640, 480);
           ctx.fillStyle = '#8b949e';
@@ -104,7 +118,7 @@ startBtn.onclick = async () => {
     }
     
     // 2. Get screen share
-    const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+    screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
 
     updateStatus('Initializing streams...', 'connected');
 
@@ -120,7 +134,7 @@ startBtn.onclick = async () => {
     };
     
     const webcamCtx = webcamCanvas.getContext('2d');
-    setInterval(() => {
+    webcamInterval = setInterval(() => {
       if (webcamVideo.readyState >= 2) {
         webcamCtx.drawImage(webcamVideo, 0, 0, webcamCanvas.width, webcamCanvas.height);
         const ts = new Date().toTimeString().slice(0, 8);
@@ -132,7 +146,7 @@ startBtn.onclick = async () => {
       }
     }, 1000 / 30);
 
-    const webcamWithTimestamp = webcamCanvas.captureStream(30);
+    webcamWithTimestamp = webcamCanvas.captureStream(30);
 
     // 4. Setup screen draw loop
     const screenVideo = document.createElement('video');
@@ -146,7 +160,7 @@ startBtn.onclick = async () => {
     };
 
     const screenCtx = screenCanvas.getContext('2d');
-    setInterval(() => {
+    screenInterval = setInterval(() => {
       if (screenVideo.readyState >= 2) {
         screenCtx.drawImage(screenVideo, 0, 0, screenCanvas.width, screenCanvas.height);
       }
@@ -162,6 +176,7 @@ startBtn.onclick = async () => {
     socket.emit('offer', offer);
 
     updateStatus('Streaming', 'streaming');
+    stopBtn.disabled = false;
   } catch (err) {
     if (err.name === 'NotAllowedError') {
       updateStatus('Permission denied — please allow camera/screen access', 'error');
@@ -169,6 +184,49 @@ startBtn.onclick = async () => {
       updateStatus(`Error: ${err.message}`, 'error');
     }
     startBtn.disabled = false;
+    stopBtn.disabled = true;
     return;
   }
+};
+
+stopBtn.onclick = () => {
+  stopBtn.disabled = true;
+  
+  if (webcamStream) {
+    webcamStream.getTracks().forEach(track => track.stop());
+    webcamStream = null;
+  }
+  if (screenStream) {
+    screenStream.getTracks().forEach(track => track.stop());
+    screenStream = null;
+  }
+  if (webcamWithTimestamp) {
+    webcamWithTimestamp.getTracks().forEach(track => track.stop());
+    webcamWithTimestamp = null;
+  }
+
+  if (webcamInterval) {
+    clearInterval(webcamInterval);
+    webcamInterval = null;
+  }
+  if (screenInterval) {
+    clearInterval(screenInterval);
+    screenInterval = null;
+  }
+  if (mockInterval) {
+    clearInterval(mockInterval);
+    mockInterval = null;
+  }
+
+  pc.getSenders().forEach(sender => pc.removeTrack(sender));
+
+  const webcamCtx = webcamCanvas.getContext('2d');
+  const screenCtx = screenCanvas.getContext('2d');
+  webcamCtx.fillStyle = '#000';
+  webcamCtx.fillRect(0, 0, webcamCanvas.width, webcamCanvas.height);
+  screenCtx.fillStyle = '#000';
+  screenCtx.fillRect(0, 0, screenCanvas.width, screenCanvas.height);
+
+  startBtn.disabled = false;
+  updateStatus('Connected', 'connected');
 };

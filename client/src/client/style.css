@@ -91,6 +91,33 @@ body {
   box-shadow: none;
   cursor: not-allowed;
 }
+#stop-btn {
+  background: linear-gradient(135deg, #cf222e, #a61a24);
+  border: none;
+  color: white;
+  padding: 12px 28px;
+  font-size: 1rem;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(207, 34, 46, 0.4);
+  transition: all 0.2s ease;
+  margin-bottom: 2rem;
+  margin-left: 10px;
+}
+#stop-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(207, 34, 46, 0.6);
+}
+#stop-btn:active {
+  transform: translateY(1px);
+}
+#stop-btn:disabled {
+  background: #30363d;
+  color: #8b949e;
+  box-shadow: none;
+  cursor: not-allowed;
+}
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
